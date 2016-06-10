@@ -20,9 +20,6 @@
  
  OpenLog will run at 115200 baud by default.
  
- During power up, you will see '12<'. '1' indicates the serial connection is established. '2' indicates
- the SD card has been successfully initialized. '<' indicates OpenLog is ready to receive serial characters.
- 
  Recording constant 115200bps datastreams are supported. Throw it everything you've got! To acheive this maximum record rate, please use the
  SD card formatter from : http://www.sdcard.org/consumers/formatter/. The fewer files on the card, the faster OpenLog is able to begin logging.
  200 files is ok. 2GB worth of music and pictures is not.
@@ -122,32 +119,21 @@ int freeRam() {
     return 0;
 #endif
 }
-void printRam() {
-#if RAM_TESTING
-    NewSerial.print(F(" RAM:"));
-    NewSerial.println(freeRam());
-#endif
-}
 
 //Handle errors by printing the error type and blinking LEDs in certain way
 //The function will never exit - it loops forever inside blink_error
 void systemError(byte error_type) {
-    NewSerial.print(F("Error "));
     switch (error_type) {
     case ERROR_CARD_INIT:
-        NewSerial.print(F("card.init"));
         blink_error(ERROR_SD_INIT);
         break;
     case ERROR_VOLUME_INIT:
-        NewSerial.print(F("volume.init"));
         blink_error(ERROR_SD_INIT);
         break;
     case ERROR_ROOT_INIT:
-        NewSerial.print(F("root.init"));
         blink_error(ERROR_SD_INIT);
         break;
     case ERROR_FILE_OPEN:
-        NewSerial.print(F("file.open"));
         blink_error(ERROR_SD_INIT);
         break;
     }
@@ -183,7 +169,6 @@ void setup(void) {
         UBRR0 = (F_CPU / (16UL * setting_uart_speed)) - 1;
         UCSR0A &= ~_BV(U2X0);
     }
-    NewSerial.print(F("1"));
 
     //Setup SD & FAT
     if (!card.init(SPI_FULL_SPEED))
@@ -193,11 +178,7 @@ void setup(void) {
     currentDirectory.close(); //We close the cD before opening root. This comes from QuickStart example. Saves 4 bytes.
     if (!currentDirectory.openRoot(&volume))
         systemError(ERROR_ROOT_INIT);
-
-    NewSerial.print(F("2"));
-
-    printRam(); //Print the available RAM
-    
+  
     read_config_file();
 }
 
@@ -299,7 +280,6 @@ void append_file(char* file_name) {
         workingFile.sync();
     }
 
-    NewSerial.print(F("<")); //give a different prompt to indicate no echoing
     digitalWrite(statled1, HIGH); //Turn on indicator LED
 
     const byte LOCAL_BUFF_SIZE = 128; //This is the 2nd buffer. It pulls from the larger NewSerial buffer as quickly as possible.
@@ -309,10 +289,15 @@ void append_file(char* file_name) {
     const uint16_t MAX_TIME_BEFORE_SYNC_MSEC = 5000;
     uint32_t lastSyncTime = millis(); //Keeps track of the last time the file was synced
 
-    printRam(); //Print the available RAM
+    uint32_t lastRequest = millis(); // last telemetry request
 
     //Start recording incoming characters
     while (1) { //Infinite loop
+
+        if ((millis()-lastRequest) >= 20) {
+            lastRequest = millis();
+            NewSerial.print(F(" "));
+        }
 
         byte n = NewSerial.read(localBuffer, sizeof(localBuffer)); //Read characters from global buffer into the local buffer
         if (n > 0) {
@@ -511,7 +496,6 @@ void record_config_file(void) {
     //If there is currently a config file, trash it
     if (myFile.open(&rootDirectory, configFileName, O_WRITE)) {
         if (!myFile.remove()) {
-            NewSerial.println(F("Remove config failed"));
             myFile.close(); //Close this file
             rootDirectory.close(); //Close this file structure instance
             return;
@@ -523,7 +507,6 @@ void record_config_file(void) {
     //Create config file
     if (myFile.open(&rootDirectory, configFileName,
             O_CREAT | O_APPEND | O_WRITE) == 0) {
-        NewSerial.println(F("Create config failed"));
         myFile.close(); //Close this file
         rootDirectory.close(); //Close this file structure instance
         return;
@@ -541,8 +524,7 @@ void record_config_file(void) {
     //Record current system settings to the config file
     if (myFile.write(settings_string, strlen(settings_string))
             != strlen(settings_string))
-        NewSerial.println(F("error writing to file"));
-
+  
     myFile.println(); //Add a break between lines
 
     //Add a decoder line to the file
