@@ -61,7 +61,6 @@ SerialPort<0, 800, 0> NewSerial;
 //1000 works on light,
 //900 works on light and is able to create config file
 
-#include <avr/sleep.h> //Needed for sleep_mode
 #include <avr/power.h> //Needed for powering down perihperals such as the ADC/TWI and Timers
 
 //Debug turns on (1) or off (0) a bunch of verbose debug statements. Normally use (0)
@@ -141,10 +140,6 @@ void systemError(byte error_type) {
 
 void setup(void) {
     pinMode(statled1, OUTPUT);
-
-    //Power down various bits of hardware to lower power usage  
-    set_sleep_mode (SLEEP_MODE_IDLE);
-    sleep_enable();
 
     //Shut off TWI, Timer2, Timer1, ADC
     ADCSRA &= ~(1 << ADEN); //Disable ADC
@@ -285,7 +280,6 @@ void append_file(char* file_name) {
     const byte LOCAL_BUFF_SIZE = 128; //This is the 2nd buffer. It pulls from the larger NewSerial buffer as quickly as possible.
     byte localBuffer[LOCAL_BUFF_SIZE];
 
-    const uint16_t MAX_IDLE_TIME_MSEC = 500; //The number of milliseconds before unit goes to sleep
     const uint16_t MAX_TIME_BEFORE_SYNC_MSEC = 5000;
     uint32_t lastSyncTime = millis(); //Keeps track of the last time the file was synced
 
@@ -312,21 +306,6 @@ void append_file(char* file_name) {
                 workingFile.sync(); //Sync the card
                 lastSyncTime = millis();
             }
-        }
-        //No characters recevied?
-        else if ((millis() - lastSyncTime) > MAX_IDLE_TIME_MSEC) { //If we haven't received any characters for a while, go to sleep
-            workingFile.sync(); //Sync the card before we go to sleep
-
-            STAT1_PORT &= ~(1 << STAT1); //Turn off stat LED to save power
-
-            power_timer0_disable(); //Shut down peripherals we don't need
-            power_spi_disable();
-            sleep_mode(); //Stop everything and go to sleep. Wake up if serial character received
-
-            power_spi_enable(); //After wake up, power up peripherals
-            power_timer0_enable();
-
-            lastSyncTime = millis(); //Reset the last sync time to now
         }
     }
 }
