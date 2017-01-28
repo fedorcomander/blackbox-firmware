@@ -21,3 +21,9 @@ your programmer if you're using one. Then click Sketch -> Verify/Compile and Fil
 [FTDI Basic Breakout]: https://www.sparkfun.com/products/9716
 [FTDI crossover]: https://www.sparkfun.com/products/10660
 [1.0.6]: http://arduino.cc/en/Main/Software#toc2
+
+
+## You like what I do and want to support feel free to donate
+
+* www.paypal.me/FedorCommander
+
